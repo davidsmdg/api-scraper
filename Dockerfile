@@ -1,33 +1,41 @@
-# Usamos la imagen oficial de Puppeteer (basada en Debian)
-FROM ghcr.io/puppeteer/puppeteer:latest
+# Usamos Node 20 como base
+FROM node:20-slim
 
-# 1. Cambiamos a root para instalar pnpm y configurar carpetas
-USER root
-
-# Instalamos pnpm de forma global
-RUN npm install -g pnpm
+# Instalamos dependencias de Google Chrome para Puppeteer en Debian
+RUN apt-get update \
+    && apt-get install -y wget gnupg \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+      --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
 # Establecemos el directorio de trabajo
 WORKDIR /usr/src/app
 
-# Aseguramos que el usuario seguro (pptruser) sea dueño de la carpeta de la app
-RUN chown -R pptruser:pptruser /usr/src/app
+# Instalamos pnpm de forma global
+RUN npm install -g pnpm
 
-# 2. Volvemos al usuario seguro para evitar ejecutar código como root
-USER pptruser
-
-# Copiamos los archivos de dependencias primero (aprovecha el cache de Docker)
-COPY --chown=pptruser:pptruser package.json pnpm-lock.yaml ./
+# Copiamos los archivos de dependencias primero
+COPY package.json pnpm-lock.yaml ./
 
 # Instalamos las librerías
 RUN pnpm install --frozen-lockfile
 
 # Copiamos el resto del código del proyecto
-COPY --chown=pptruser:pptruser . .
+COPY . .
 
-# Exponemos el puerto 3000 (el que configuramos en index.js y Easypanel)
+# Exponemos el puerto 3000
 EXPOSE 3000
 
+# Añadimos un usuario no-root por seguridad
+RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
+    && mkdir -p /home/pptruser/Downloads \
+    && chown -R pptruser:pptruser /home/pptruser \
+    && chown -R pptruser:pptruser /usr/src/app
+
+USER pptruser
+
 # Comando para arrancar el servidor
-# Usamos el formato de array para una mejor gestión de señales de cierre
 CMD ["node", "index.js"]

@@ -7,25 +7,30 @@ const mapWebsiteLinks = async (url) => {
     try {
         console.log(`[Firecrawl] 🔍 Iniciando mapeo de URL: ${url}`);
         
-        // En SDK v4+, el método es .map() y los parámetros han cambiado ligeramente
+        // En SDK v4+, el método es .map()
         const mapResult = await firecrawl.map(url, { 
             limit: 15,
             excludeExternalLinks: true 
         });
         
-        if (!mapResult.success) {
-            throw new Error(mapResult.error || 'Error desconocido en Firecrawl');
+        if (!mapResult || !mapResult.success) {
+            console.warn(`[Firecrawl] ⚠️ Map falló o no fue exitoso. Usando URL base.`);
+            return [url];
         }
         
-        // En SDK v4+, links puede ser un array de objetos o strings dependiendo del endpoint
+        // Mapeamos objetos de link a strings de URL
         const links = (mapResult.links || []).map(l => typeof l === 'object' ? l.url : l);
         
-        console.log(`[Firecrawl] ✅ Mapeo completado. Encontrados ${links.length} enlaces relevantes.`);
+        // Nos aseguramos de que la URL original esté en la lista
+        if (!links.includes(url)) {
+            links.unshift(url);
+        }
         
+        console.log(`[Firecrawl] ✅ Mapeo completado. Encontrados ${links.length} enlaces relevantes.`);
         return links;
     } catch (error) {
         console.error('[Firecrawl] ❌ Error durante el mapeo:', error.message);
-        // Si falla el mapeo, al menos devolvemos la URL principal para no detener el proceso
+        // Resiliencia: Si falla, devolvemos un array con la URL principal
         return [url];
     }
 };

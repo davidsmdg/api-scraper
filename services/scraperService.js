@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer');
 const { ApifyClient } = require('apify-client');
+const fs = require('fs');
 
 const apifyClient = new ApifyClient({ token: process.env.APIFY_API_TOKEN });
 
@@ -8,11 +9,22 @@ const scrapeUrls = async (urls) => {
     const results = [];
     let browser;
 
+    // Buscamos el binario de Chrome en rutas comunes de Docker (Debian/Ubuntu)
+    const possiblePaths = [
+        process.env.PUPPETEER_EXECUTABLE_PATH,
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser'
+    ];
+
+    const executablePath = possiblePaths.find(path => path && fs.existsSync(path));
+
     try {
         browser = await puppeteer.launch({
-            // CONFIGURACIÓN PARA DOCKER (ghcr.io/puppeteer/puppeteer)
+            // CONFIGURACIÓN PARA DOCKER
             headless: 'new',
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
+            executablePath: executablePath || undefined, // Si no se encuentra, dejamos que Puppeteer intente por defecto
             args: [
                 '--no-sandbox', 
                 '--disable-setuid-sandbox', 
@@ -33,6 +45,7 @@ const scrapeUrls = async (urls) => {
                 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
                 const html = await page.content();
                 
+                // Limpieza de HTML
                 const textOnly = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gm, '')
                                      .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gm, '');
                 
