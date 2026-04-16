@@ -10,9 +10,9 @@ const scrapeUrls = async (urls) => {
 
     try {
         browser = await puppeteer.launch({
-            // CONFIGURACIÓN CRÍTICA PARA DOCKER
+            // CONFIGURACIÓN PARA DOCKER (ghcr.io/puppeteer/puppeteer)
             headless: 'new',
-            // Sin executablePath fijo para que el contenedor use el binario por defecto o bundled
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
             args: [
                 '--no-sandbox', 
                 '--disable-setuid-sandbox', 
@@ -27,14 +27,12 @@ const scrapeUrls = async (urls) => {
             let page;
             try {
                 page = await browser.newPage();
-                // User agent para evitar bloqueos básicos
                 await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
                 
                 console.log(`Extrayendo: ${url}`);
                 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
                 const html = await page.content();
                 
-                // Limpieza básica de HTML para reducir peso antes de los análisis
                 const textOnly = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gm, '')
                                      .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gm, '');
                 
@@ -52,7 +50,7 @@ const scrapeUrls = async (urls) => {
         if (browser) await browser.close();
     }
 
-    // Fallback con Apify para las URLs que fallaron
+    // Fallback con Apify
     const failedUrls = results.filter(r => !r.success).map(r => r.url);
     if (failedUrls.length > 0 && process.env.APIFY_API_TOKEN) {
         console.log(`Usando Apify como respaldo para ${failedUrls.length} URLs...`);
