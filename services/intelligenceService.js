@@ -125,48 +125,7 @@ const searchIndustryNewsWithKimi = async (kimiPrompt) => {
     return await callLLM('moonshotai/kimi-k2.5', [{ role: 'user', content: kimiPrompt }]);
 };
 
-const parseKimiNews = (userId, projectId, text) => {
-    const newsItems = [];
-    
-    // Regex para capturar los bloques de noticias basándonos en el formato solicitado
-    // Titular, Medio, URL, Fecha, País, Resumen, Impacto, Área
-    const newsBlocks = text.split(/Titular:?\s*/i).slice(1);
-
-    for (const block of newsBlocks) {
-        try {
-            const lines = block.split('\n');
-            const title = lines[0].trim();
-            
-            const mediaMatch = block.match(/Medio o publicación:?\s*(.*)/i);
-            const urlMatch = block.match(/URL de la fuente:?\s*(.*)/i);
-            const dateMatch = block.match(/Fecha:?\s*(.*)/i);
-            const countryMatch = block.match(/País:?\s*(.*)/i);
-            const summaryMatch = block.match(/Resumen estratégico:?\s*([\s\S]*?)(?=Impacto esperado|$)/i);
-            const impactMatch = block.match(/Impacto esperado:?\s*(.*)/i);
-            const areaMatch = block.match(/Área afectada:?\s*(.*)/i);
-
-            if (title) {
-                newsItems.push({
-                    user_id: userId,
-                    project_id: projectId,
-                    title: title,
-                    media: mediaMatch ? mediaMatch[1].trim() : null,
-                    url: urlMatch ? urlMatch[1].trim() : null,
-                    published_at: dateMatch ? dateMatch[1].trim() : null,
-                    country: countryMatch ? countryMatch[1].trim() : null,
-                    summary: summaryMatch ? summaryMatch[1].trim() : null,
-                    impact: impactMatch ? impactMatch[1].trim() : null,
-                    area_affected: areaMatch ? areaMatch[1].trim() : null,
-                    is_saved: false
-                });
-            }
-        } catch (e) {
-            console.error('Error parseando bloque de noticia:', e.message);
-        }
-    }
-
-    return newsItems;
-};
+// Ya no es necesario parsear noticias individuales, guardamos el bloque completo.
 
 const onboardingIndustryNewsFlow = async (userId, projectId) => {
     console.log(`[Intelligence] Iniciando flujo de noticias de industria para User: ${userId}`);
@@ -192,21 +151,27 @@ const onboardingIndustryNewsFlow = async (userId, projectId) => {
     console.log(`[Intelligence] Ejecutando investigación con Kimi K2.5...`);
     const kimiResponse = await searchIndustryNewsWithKimi(kimiPrompt);
 
-    // 4. Parsear y Guardar
-    console.log(`[Intelligence] Procesando y guardando noticias...`);
-    const newsItems = parseKimiNews(userId, projectId, kimiResponse);
+    // 4. Guardar documento completo
+    console.log(`[Intelligence] Guardando investigación completa...`);
     
-    if (newsItems.length > 0) {
-        await saveIndustryNews(newsItems);
-        console.log(`[Intelligence] ${newsItems.length} noticias guardadas con éxito.`);
-    } else {
-        console.warn(`[Intelligence] No se detectaron noticias estructuradas en la respuesta de Kimi.`);
-    }
+    // Extraer un título simple del contexto o usar uno genérico
+    const mainTitle = `Investigación Estratégica Sectorial - ${new Date().toLocaleDateString()}`;
+
+    const newsData = {
+        user_id: userId,
+        project_id: projectId,
+        title: mainTitle,
+        full_content: kimiResponse,
+        saved_content: ''
+    };
+
+    await saveIndustryNews(newsData);
+    console.log(`[Intelligence] Investigación guardada con éxito.`);
 
     return { 
         success: true, 
-        newsCount: newsItems.length,
-        rawOutput: kimiResponse // Por si queremos ver las tendencias/proyecciones que no guardamos en tabla estructurada todavía
+        title: mainTitle,
+        full_content: kimiResponse
     };
 };
 

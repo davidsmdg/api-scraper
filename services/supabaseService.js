@@ -48,11 +48,11 @@ const getMemoryByCategory = async (userId, category, projectId = null) => {
     }
 };
 
-const saveIndustryNews = async (newsItems) => {
+const saveIndustryNews = async (newsData) => {
     try {
         const { data, error } = await supabase
             .from('industry_news')
-            .insert(newsItems);
+            .insert([newsData]);
 
         if (error) throw error;
         return data;
@@ -62,4 +62,37 @@ const saveIndustryNews = async (newsItems) => {
     }
 };
 
-module.exports = { saveMemoryResource, getMemoryByCategory, saveIndustryNews };
+const appendSavedNews = async (newsId, contentToAppend) => {
+    try {
+        // Obtenemos el contenido actual
+        const { data: current, error: getError } = await supabase
+            .from('industry_news')
+            .select('saved_content')
+            .eq('id', newsId)
+            .single();
+
+        if (getError) throw getError;
+
+        const newContent = current.saved_content 
+            ? `${current.saved_content}\n\n---\n\n${contentToAppend}` 
+            : contentToAppend;
+
+        const { data, error } = await supabase
+            .from('industry_news')
+            .update({ saved_content: newContent })
+            .eq('id', newsId);
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error al concatenar noticia guardada:', error.message);
+        throw error;
+    }
+};
+
+module.exports = { 
+    saveMemoryResource, 
+    getMemoryByCategory, 
+    saveIndustryNews,
+    appendSavedNews
+};

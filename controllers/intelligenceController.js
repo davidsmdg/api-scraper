@@ -23,4 +23,22 @@ const getIndustryNews = async (req, res) => {
     }
 };
 
-module.exports = { getIndustryNews };
+const { appendSavedNews } = require('../services/supabaseService');
+
+const saveSelectedNews = async (req, res) => {
+    const { newsId, contentToSave } = req.body;
+
+    if (!newsId || !contentToSave) {
+        return res.status(400).json({ error: 'newsId y contentToSave son obligatorios' });
+    }
+
+    try {
+        const result = await appendSavedNews(newsId, contentToSave);
+        return res.status(200).json({ success: true, message: 'Noticia concatenada con éxito', result });
+    } catch (error) {
+        console.error('Error en saveSelectedNews Controller:', error.message);
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = { getIndustryNews, saveSelectedNews };
