@@ -2,121 +2,45 @@ const { getMemoryByCategory, saveIndustryNews } = require('./supabaseService');
 const { callLLM } = require('./aiService');
 
 const generateIndustryNewsPrompt = async (companyData) => {
-    const metaPrompt = `Actúa como analista senior en inteligencia competitiva y estructuración de prompts para investigación de mercado.
-
-Recibirás contenido extraído de varias páginas de un sitio web corporativo.
-
-Toda la información disponible viene en la siguiente variable:
-
-Datos de la empresa:
-${JSON.stringify(companyData)}
-
-Tu tarea:
-Debes analizar la información contenida en Datos de la empresa y generar un prompt optimizado para investigación sectorial profunda que será utilizado por un motor de investigación externa.
-
-⚠️ Importante:
-No asumas información que no esté en el contenido.
-Las empresas pueden pertenecer a cualquier industria.
-Debes inferir el contexto empresarial únicamente a partir de los datos proporcionados.
-
-Paso 1 — Analizar el sitio web:
-A partir de la información contenida en Datos de la empresa, identifica:
-1. Nombre de la empresa
-2. Sitio web principal
-3. Resumen de la empresa
-4. Industria (Principal y Subsector)
-5. Modelo de negocio
-6. Ubicación o mercado geográfico
-7. Palabras clave del sector
-
-Paso 2 — Generar el prompt de investigación sectorial:
-Debes generar UN SOLO TEXTO que será utilizado directamente para realizar investigación estratégica externa.
-
-Estructura obligatoria del prompt que debes generar:
-
-Actúa como analista senior en inteligencia competitiva y monitoreo sectorial.
-
-Empresa objetivo
-Nombre: [nombre detectado]
-Web: [dominio detectado]
-
-Contexto de la empresa (extraído de su sitio web)
-[Resumen claro de la empresa]
-
-Información estratégica detectada
-Industria principal: [industria]
-Subsector o nicho: [subsector]
-Modelo de negocio: [modelo]
-Ubicación o mercado geográfico: [países o regiones detectadas]
-Palabras clave del sector: [keywords]
-
-Objetivo de la investigación:
-Identificar noticias estratégicas, tendencias sectoriales y cambios estructurales que puedan afectar positiva o negativamente a la empresa o a su industria.
-
-Paso 1 – Identificación base
-... (resto de las instrucciones del paso 1, 2, 3 y 4 proporcionadas por el usuario) ...
-
-REGLA DE ORO: Tu salida debe ser UNICAMENTE el prompt final generado. No expliques nada.`;
-
-    // Usamos el texto completo de las instrucciones del usuario para el prompt final
+    const currentYear = 2026;
     const fullMetaPrompt = `Actúa como analista senior en inteligencia competitiva y estructuración de prompts para investigación de mercado.
 
 Recibirás contenido extraído de varias páginas de un sitio web corporativo.
 
-Toda la información disponible viene en la siguiente variable:
-
 Datos de la empresa:
 ${JSON.stringify(companyData)}
 
 Tu tarea:
-Debes analizar la información contenida en Datos de la empresa y generar un prompt optimizado para investigación sectorial profunda que será utilizado por un motor de investigación externa.
+Analizar la información de la empresa y generar un prompt de investigación estratégica profunda optimizado para Kimi K2.5.
 
-⚠️ Importante:
-No asumas información que no esté en el contenido.
-Las empresas pueden pertenecer a cualquier industria.
-Debes inferir el contexto empresarial únicamente a partir de los datos proporcionados.
+⚠️ REGLAS CRÍTICAS PARA EL PROMPT QUE DEBES GENERAR (PARA KIMI):
+1. ACTUALIDAD TOTAL: Estamos en el año ${currentYear}. Todas las noticias, tendencias y datos deben ser actuales (2025-2026).
+2. BRANDING: El reporte debe encabezarse obligatoriamente con "Elaborado por: Radikal IA".
+3. FUENTES Y LINKS: Todas las noticias DEBEN tener el nombre del medio y el LINK (URL) directo a la fuente. No aceptes noticias sin respaldo de link clickable.
+4. ALCANCE ESTRATÉGICO Y POLÍTICO: La investigación debe cubrir:
+   - Decisiones de gobiernos y nuevas leyes sectoriales.
+   - Tratados comerciales y acuerdos internacionales entre países que afecten el mercado.
+   - Movimientos directos o indirectos de la competencia y la propia empresa en su región.
+5. SIN DESCARGOS DE RESPONSABILIDAD: Prohibido incluir secciones de "Limitaciones del análisis", "Falta de estados financieros" o sugerencias de bases de datos externas. El informe debe ser conclusivo y profesional.
+6. FORMATO: Utiliza Markdown con títulos (##), negritas y TABLAS comparativas para que la información sea clara de consumir.
 
-Paso 1 — Analizar el sitio web:
-Identify Name, Website, Summary, Industry (Principal/Subsector), Business Model, Location, Keywords.
+[ESTRUCTURA DEL PROMPT FINAL PARA KIMI]
+Actúa como analista senior en inteligencia estratégica de Radikal IA.
 
-Paso 2 — Generar el prompt de investigación sectorial:
-Genera el texto listo para Kimi.
+Empresa: [nombre]
+Sector: [industria]
+Contexto: [resumen]
 
-[ESTRUCTURA DEL PROMPT PARA KIMI]
-Actúa como analista senior en inteligencia competitiva y monitoreo sectorial.
+Investiga y genera un reporte de inteligencia para ${currentYear} con las siguientes secciones:
+## Informe de Inteligencia Estratégica: [Nombre Empresa]
+**Elaborado por: Radikal IA**
 
-Empresa objetivo
-Nombre: [nombre]
-Web: [web]
+- ## Análisis del Entorno Político y Legal: (Leyes, tratados, decretos gubernamentales de impacto).
+- ## Noticias Estratégicas y Movimientos del Mercado: (M&A, expansión, nuevos competidores).
+- ## Tabla de Tendencias y Disrupciones: (Tendencia | Fuente | Link | Impacto).
+- ## Hallazgos Clave: (Lista detallada con Fuente, Link y análisis de impacto).
 
-Contexto de la empresa (extraído de su sitio web)
-[Resumen]
-
-Información estratégica detectada
-Industria principal: [industria]
-Subsector o nicho: [subsector]
-Modelo de negocio: [modelo]
-Ubicación o mercado geográfico: [ubicación]
-Palabras clave del sector: [keywords]
-
-Objetivo de la investigación:
-Identificar noticias estratégicas, tendencias sectoriales y cambios estructurales.
-
-Paso 1 – Identificación base:
-Identifica los países o ciudades donde la empresa opera.
-
-Paso 2 – Noticias estratégicas sectoriales (PRIORIDAD ALTA):
-Busca noticias externas del último año.
-Cada noticia debe incluir: Titular, Medio, URL, Fecha, País, Resumen estratégico, Impacto esperado, Área afectada.
-
-Paso 3 – Tendencias estructurales del sector:
-...
-Paso 4 – Proyecciones de crecimiento del sector:
-...
-Sección final obligatoria – Fuentes consultadas:
-...
-
-REGLA DE ORO: Tu salida debe ser ÚNICAMENTE el prompt final generado. Sin explicaciones. Sin bloques de código markdown. Solo el texto.`;
+REGLA DE ORO: Tu salida debe ser ÚNICAMENTE el prompt final generado. Sin explicaciones. Solo el texto.`;
 
     return await callLLM('openai/gpt-4o', [{ role: 'user', content: fullMetaPrompt }]);
 };
