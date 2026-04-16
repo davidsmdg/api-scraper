@@ -12,8 +12,8 @@ const scrapeUrls = async (urls) => {
     // Buscamos el binario de Chrome en rutas comunes de Docker (Debian/Ubuntu)
     const possiblePaths = [
         process.env.PUPPETEER_EXECUTABLE_PATH,
-        '/usr/bin/google-chrome',
         '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
         '/usr/bin/chromium',
         '/usr/bin/chromium-browser'
     ];
@@ -24,7 +24,7 @@ const scrapeUrls = async (urls) => {
         browser = await puppeteer.launch({
             // CONFIGURACIÓN PARA DOCKER
             headless: 'new',
-            executablePath: executablePath || undefined, // Si no se encuentra, dejamos que Puppeteer intente por defecto
+            executablePath: executablePath || undefined,
             args: [
                 '--no-sandbox', 
                 '--disable-setuid-sandbox', 
@@ -45,7 +45,7 @@ const scrapeUrls = async (urls) => {
                 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
                 const html = await page.content();
                 
-                // Limpieza de HTML
+                // Limpieza de HTML básica
                 const textOnly = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gm, '')
                                      .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gm, '');
                 
@@ -59,23 +59,37 @@ const scrapeUrls = async (urls) => {
         }
     } catch (error) {
         console.error('Error crítico en Puppeteer:', error.message);
+        // Marcamos las que no se procesaron para el fallback de Apify
+        urls.forEach(u => {
+            if (!results.find(r => r.url === u)) {
+                results.push({ url: u, error: error.message, success: false });
+            }
+        });
     } finally {
         if (browser) await browser.close();
     }
 
-    // Fallback con Apify
+    // Fallback con Apify para las URLs que fallaron
     const failedUrls = results.filter(r => !r.success).map(r => r.url);
     if (failedUrls.length > 0 && process.env.APIFY_API_TOKEN) {
         console.log(`Usando Apify como respaldo para ${failedUrls.length} URLs...`);
         try {
-            const run = await apifyClient.actor('mtrunkat/url-list-download-html').call({ listUrls: failedUrls });
+            // Actor mtrunkat/url-list-download-html usa 'requestListSources'
+            const run = await apifyClient.actor('mtrunkat/url-list-download-html').call({
+                requestListSources: failedUrls.map(url => ({ url }))
+            });
+
+            console.log(`[Apify] Actor finalizado con ID: ${run.id}. Descargando resultados...`);
             const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
             
             items.forEach(item => {
                 if (item.html) {
-                    const index = results.findIndex(r => r.url === item.url);
+                    const index = results.findIndex(r => r.url === (item.url || item.requestedUrl));
                     if (index !== -1) {
-                        results[index] = { url: item.url, html: item.html, success: true };
+                        // Limpieza básica también para Apify
+                        const cleanedHtml = item.html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gm, '')
+                                                     .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gm, '');
+                        results[index] = { url: item.url || item.requestedUrl, html: cleanedHtml, success: true };
                     }
                 }
             });
