@@ -35,8 +35,8 @@ const scrapeUrls = async (urls) => {
                 const html = await page.content();
                 
                 // Limpieza básica de HTML para reducir peso antes de los análisis
-                const textOnly = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmb, '')
-                                     .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gmb, '');
+                const textOnly = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gm, '')
+                                     .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gm, '');
                 
                 results.push({ url, html: textOnly, success: true });
             } catch (error) {
