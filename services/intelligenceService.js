@@ -10,43 +10,42 @@ Recibirás contenido extraído de varias páginas de un sitio web corporativo.
 Datos de la empresa:
 ${JSON.stringify(companyData)}
 
-Tu tarea:
-Analizar la información de la empresa y generar un prompt de investigación estratégica profunda optimizado para Kimi K2.5.
+Recibirás datos brutos de una empresa. Tu única misión es extraer el contexto y redactar un PROMPT INSTRUCCIONAL en ESPAÑOL para que otra IA (Kimi K2.5) realice una búsqueda en la web.
 
-⚠️ REGLAS CRÍTICAS PARA EL PROMPT QUE DEBES GENERAR (PARA KIMI):
-1. ACTUALIDAD TOTAL: Estamos en el año ${currentYear}. Todas las noticias, tendencias y datos deben ser actuales (2025-2026).
-2. BRANDING: El reporte debe encabezarse obligatoriamente con "Elaborado por: Radikal IA".
-3. FUENTES Y LINKS: Todas las noticias DEBEN tener el nombre del medio y el LINK (URL) directo a la fuente. No aceptes noticias sin respaldo de link clickable.
-4. ALCANCE ESTRATÉGICO Y POLÍTICO: La investigación debe cubrir:
-   - Decisiones de gobiernos y nuevas leyes sectoriales.
-   - Tratados comerciales y acuerdos internacionales entre países que afecten el mercado.
-   - Movimientos directos o indirectos de la competencia y la propia empresa en su región.
-5. SIN DESCARGOS DE RESPONSABILIDAD: Prohibido incluir secciones de "Limitaciones del análisis", "Falta de estados financieros" o sugerencias de bases de datos externas. El informe debe ser conclusivo y profesional.
-6. FORMATO: Utiliza Markdown con títulos (##), negritas y TABLAS comparativas para que la información sea clara de consumir.
+Datos de la empresa:
+${JSON.stringify(companyData)}
 
-[ESTRUCTURA DEL PROMPT FINAL PARA KIMI]
-Actúa como analista senior en inteligencia estratégica de Radikal IA.
+[REGLAS DEL PROMPT QUE DEBES REDACTAR PARA KIMI]
+1. ACTUALIDAD: Centrado en el año ${currentYear}.
+2. IDIOMA: El prompt debe ordenarle a Kimi investigar y responder ÚNICAMENTE en ESPAÑOL.
+3. BRANDING: El reporte final debe decir "Elaborado por: Radikal IA".
+4. LINKS: Obligatorio incluir URLs directas de las fuentes.
+5. GEOPOLÍTICA: Incluir búsqueda de leyes, tratados y decisiones de gobierno.
+6. SIN COMENTARIOS: No incluyas "Limitaciones" ni disculpas por falta de datos.
 
-Empresa: [nombre]
-Sector: [industria]
-Contexto: [resumen]
+[ESTRUCTURA DEL PROMPT QUE DEBES ENTREGAR]
+Actúa como investigador senior de Radikal IA. Tu objetivo es redactar un informe de inteligencia en ESPAÑOL sobre la empresa [Nombre].
+Investiga en la web noticias de ${currentYear} sobre:
+- Cambios legales y políticos en [Ubicación].
+- Tendencias de mercado en [Sector].
+Importante: Cada hallazgo debe llevar su Fuente y Link clickable.
+Formato: Markdown con tablas y títulos.
 
-Investiga y genera un reporte de inteligencia para ${currentYear} con las siguientes secciones:
-## Informe de Inteligencia Estratégica: [Nombre Empresa]
-**Elaborado por: Radikal IA**
-
-- ## Análisis del Entorno Político y Legal: (Leyes, tratados, decretos gubernamentales de impacto).
-- ## Noticias Estratégicas y Movimientos del Mercado: (M&A, expansión, nuevos competidores).
-- ## Tabla de Tendencias y Disrupciones: (Tendencia | Fuente | Link | Impacto).
-- ## Hallazgos Clave: (Lista detallada con Fuente, Link y análisis de impacto).
-
-REGLA DE ORO: Tu salida debe ser ÚNICAMENTE el prompt final generado. Sin explicaciones. Solo el texto.`;
+REGLA DE ORO: Tu salida debe ser ÚNICAMENTE el texto del prompt para la otra IA. No me hables a mí. No saludes. No expliques. Solo el prompt.`;
 
     return await callLLM('openai/gpt-4o', [{ role: 'user', content: fullMetaPrompt }]);
 };
 
 const searchIndustryNewsWithKimi = async (kimiPrompt) => {
-    return await callLLM('moonshotai/kimi-k2.5', [{ role: 'user', content: kimiPrompt }]);
+    // Forzamos el idioma español y el rol de experto en el sistema de Kimi
+    const messages = [
+        { 
+            role: 'system', 
+            content: 'Eres un analista de inteligencia estratégica de Radikal IA. Tu misión es investigar la web y entregar reportes de alto valor en ESPAÑOL. Siempre incluye links directos a las fuentes y usa un tono profesional.' 
+        },
+        { role: 'user', content: kimiPrompt }
+    ];
+    return await callLLM('moonshotai/kimi-k2.5', messages);
 };
 
 // Ya no es necesario parsear noticias individuales, guardamos el bloque completo.
