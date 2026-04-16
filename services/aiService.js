@@ -4,12 +4,6 @@ const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
 });
 
-// Cliente directo a la API nativa de Moonshot para el acceso a $web_search
-const moonshotClient = new OpenAI({
-    baseURL: 'https://api.moonshot.cn/v1', // También se acepta api.moonshot.ai
-    apiKey: process.env.MOONSHOT_API_KEY,
-});
-
 /**
  * Genera el perfil de marca completo compatible con el frontend de Radikal IA.
  * Utilizando el esquema mejorado y crítico de n8n para análisis estratégico profundo.
@@ -125,6 +119,13 @@ const callKimiWithWebSearch = async (messages) => {
     try {
         console.log("[Intelligence] Iniciando investigación profunda en la web con la API nativa de Kimi...");
         
+        // Inicialización dinámica para garantizar la lectura de process.env.MOONSHOT_API_KEY
+        // y usando la URL exacta proporcionada en el ejemplo: api.moonshot.ai
+        const moonshotClient = new OpenAI({
+            baseURL: 'https://api.moonshot.ai/v1',
+            apiKey: process.env.MOONSHOT_API_KEY,
+        });
+
         const tools = [
             {
                 "type": "builtin_function",
