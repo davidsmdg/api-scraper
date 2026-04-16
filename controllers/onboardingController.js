@@ -2,6 +2,7 @@ const { mapWebsiteLinks } = require('../services/firecrawlService');
 const { scrapeUrls } = require('../services/scraperService');
 const { saveMemoryResource } = require('../services/supabaseService');
 const { generateStructuralProfile, analyzeImageDirecting } = require('../services/aiService');
+const { onboardingIndustryNewsFlow } = require('../services/intelligenceService');
 
 // Funciones Auxiliares para asegurar manejo de URLs impecable
 function getBaseDomain(fullUrl) {
@@ -223,6 +224,14 @@ const startOnboarding = async (req, res) => {
                     JSON.stringify(brandProfile),
                     'text'
                 );
+            }
+
+            // 7. Búsqueda de Noticias de Industria (NUEVO)
+            console.log(`[Job ID: ${jobId}] 📰 Iniciando investigación sectorial con Kimi K2.5...`);
+            try {
+                await onboardingIndustryNewsFlow(userId, projectId);
+            } catch (newsError) {
+                console.error(`[Job ID: ${jobId}] ⚠️ Error no fatal en búsqueda de noticias:`, newsError.message);
             }
 
             console.log(`[Job ID: ${jobId}] 🏁 PROCESO FINALIZADO CON ÉXITO.`);
