@@ -12,37 +12,42 @@ const scrapeUrls = async (urls) => {
         browser = await puppeteer.launch({
             // CONFIGURACIÓN CRÍTICA PARA DOCKER
             headless: 'new',
-            executablePath: '/usr/bin/google-chrome', // Ruta donde se instala Chrome en Linux
+            // Sin executablePath fijo para que el contenedor use el binario por defecto o bundled
             args: [
                 '--no-sandbox', 
                 '--disable-setuid-sandbox', 
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
                 '--no-first-run',
-                '--no-zygote',
-                '--single-process' // Ayuda a ahorrar memoria en contenedores pequeños
+                '--no-zygote'
             ]
         });
 
         for (const url of urls) {
-            const page = await browser.newPage();
-            // User agent para evitar bloqueos básicos
-            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
-            
+            let page;
             try {
+                page = await browser.newPage();
+                // User agent para evitar bloqueos básicos
+                await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
+                
                 console.log(`Extrayendo: ${url}`);
                 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
                 const html = await page.content();
-                results.push({ url, html, success: true });
+                
+                // Limpieza básica de HTML para reducir peso antes de los análisis
+                const textOnly = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmb, '')
+                                     .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gmb, '');
+                
+                results.push({ url, html: textOnly, success: true });
             } catch (error) {
                 console.error(`Error en Puppeteer para ${url}:`, error.message);
                 results.push({ url, error: error.message, success: false });
             } finally {
-                await page.close();
+                if (page) await page.close();
             }
         }
     } catch (error) {
-        console.error('Error crítico en Puppeteer:', error);
+        console.error('Error crítico en Puppeteer:', error.message);
     } finally {
         if (browser) await browser.close();
     }

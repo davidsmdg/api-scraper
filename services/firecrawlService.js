@@ -7,19 +7,19 @@ const mapWebsiteLinks = async (url) => {
     try {
         console.log(`[Firecrawl] 🔍 Iniciando mapeo de URL: ${url}`);
         
-        // Mapeamos hasta 15 subpáginas para tener una visión general sin saturar
-        const mapResult = await firecrawl.mapUrl(url, { 
-            params: { 
-                limit: 15,
-                excludeExternalLinks: true 
-            } 
+        // En SDK v4+, el método es .map() y los parámetros han cambiado ligeramente
+        const mapResult = await firecrawl.map(url, { 
+            limit: 15,
+            excludeExternalLinks: true 
         });
         
         if (!mapResult.success) {
             throw new Error(mapResult.error || 'Error desconocido en Firecrawl');
         }
         
-        const links = mapResult.links || [];
+        // En SDK v4+, links puede ser un array de objetos o strings dependiendo del endpoint
+        const links = (mapResult.links || []).map(l => typeof l === 'object' ? l.url : l);
+        
         console.log(`[Firecrawl] ✅ Mapeo completado. Encontrados ${links.length} enlaces relevantes.`);
         
         return links;

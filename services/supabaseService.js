@@ -7,11 +7,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const saveMemoryResource = async (userId, projectId, category, title, content) => {
     try {
+        // Corrección de columna: la tabla usa 'memory_category', no 'category'
         const { data, error } = await supabase.from('memory_resources').insert([
             { 
                 user_id: userId, 
                 project_id: projectId, 
-                category: category, 
+                memory_category: category, 
                 title: title, 
                 content: content 
             }
