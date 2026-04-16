@@ -25,7 +25,8 @@ const processBrandOnboardingBackground = async (urls, userId, projectId, jobId) 
                 projectId, 
                 'Estructura_Web', 
                 `Subpágina Detectada: ${new URL(link).pathname || link}`, 
-                link
+                link,
+                'link'
             ).catch(err => console.error(`[Error] Falló guardado de link ${link}:`, err.message));
         }
 
@@ -51,7 +52,8 @@ const processBrandOnboardingBackground = async (urls, userId, projectId, jobId) 
                 projectId, 
                 'Info_competencia_noticias', 
                 'Análisis Estructural Automático', 
-                structuralProfile
+                structuralProfile,
+                'text'
             );
 
             // ANÁLISIS VISUAL: Buscamos imágenes relevantes en el HTML
@@ -71,7 +73,8 @@ const processBrandOnboardingBackground = async (urls, userId, projectId, jobId) 
                             projectId, 
                             'Identidad_Visual', 
                             'Análisis Visual de Referencia', 
-                            { url: imgUrl, analysis: visualAnalysis }
+                            { url: imgUrl, analysis: visualAnalysis },
+                            'image'
                         );
                     }
                 } catch (e) {

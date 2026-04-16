@@ -5,16 +5,17 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const saveMemoryResource = async (userId, projectId, category, title, content) => {
+const saveMemoryResource = async (userId, projectId, category, title, content, resourceType = 'text') => {
     try {
-        // Corrección de columna: la tabla usa 'memory_category', no 'category'
+        // Corrección: agregando 'resource_type' que es obligatorio (NOT NULL)
         const { data, error } = await supabase.from('memory_resources').insert([
             { 
                 user_id: userId, 
                 project_id: projectId, 
                 memory_category: category, 
                 title: title, 
-                content: content 
+                content: typeof content === 'object' ? JSON.stringify(content) : content,
+                resource_type: resourceType
             }
         ]);
 
