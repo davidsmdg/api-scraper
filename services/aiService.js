@@ -6,7 +6,7 @@ const openai = new OpenAI({
 
 // Cliente directo a la API nativa de Moonshot para el acceso a $web_search
 const moonshotClient = new OpenAI({
-    baseURL: 'https://api.moonshot.cn/v1', // El dominio según la documentación
+    baseURL: 'https://api.moonshot.cn/v1', // También se acepta api.moonshot.ai
     apiKey: process.env.MOONSHOT_API_KEY,
 });
 
@@ -118,7 +118,8 @@ const callLLM = async (model, messages, jsonMode = false, maxRetries = 3) => {
 
 /**
  * Función especializada para Kimi usando la API nativa de Moonshot,
- * habilitando explícitamente $web_search para búsquedas en la web en tiempo real.
+ * habilitando explícitamente $web_search y deshabilitando "thinking"
+ * según la documentación oficial para evitar problemas de razonamiento.
  */
 const callKimiWithWebSearch = async (messages) => {
     try {
@@ -138,10 +139,11 @@ const callKimiWithWebSearch = async (messages) => {
         
         while (finishReason === null || finishReason === "tool_calls") {
             const completion = await moonshotClient.chat.completions.create({
-                model: "moonshot-v1-32k", // El modelo oficial de Kimi que soporta búsquedas largas
+                model: "kimi-k2.5", 
                 messages: currentMessages,
-                temperature: 0.3,
+                temperature: 0.6,
                 tools: tools,
+                thinking: {"type": "disabled"} // Crítico según la documentación
             });
 
             const choice = completion.choices[0];
@@ -153,18 +155,17 @@ const callKimiWithWebSearch = async (messages) => {
 
                 for (const toolCall of choice.message.tool_calls) {
                     const toolCallName = toolCall.function.name;
-                    // Según la documentación de Moonshot, solo necesitamos devolver los argumentos generados sin procesar.
                     const toolCallArguments = JSON.parse(toolCall.function.arguments);
                     
                     let toolResult = null;
                     if (toolCallName === "$web_search") {
-                        console.log("[Intelligence] Permitiendo ejecución en la nube de $web_search por parte de Moonshot...");
-                        toolResult = toolCallArguments;
+                        console.log("[Intelligence] Procesando argumentos para la búsqueda web de Moonshot...");
+                        toolResult = toolCallArguments; // Se devuelve tal cual
                     } else {
-                        toolResult = "Error: no tool found";
+                        toolResult = "no tool found";
                     }
 
-                    // Respondemos con role "tool" para que Moonshot inyecte el resultado de la búsqueda
+                    // Inyectar contexto de la herramienta
                     currentMessages.push({
                         "role": "tool",
                         "tool_call_id": toolCall.id,
@@ -173,7 +174,7 @@ const callKimiWithWebSearch = async (messages) => {
                     });
                 }
             } else {
-                console.log("[Intelligence] Búsqueda y razonamiento completados por Kimi.");
+                console.log("[Intelligence] Búsqueda y análisis completados por Kimi.");
                 return choice.message.content.trim();
             }
         }
