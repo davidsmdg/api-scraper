@@ -41,4 +41,20 @@ const saveSelectedNews = async (req, res) => {
     }
 };
 
-module.exports = { getIndustryNews, saveSelectedNews };
+const refreshCompetitorsAnalysis = async (req, res) => {
+    const { userId, projectId } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'userId es obligatorio' });
+    }
+
+    try {
+        const result = await intelligenceService.refreshCompetitorsFlow(userId, projectId);
+        return res.status(200).json(result);
+    } catch (error) {
+        console.error('Error en refreshCompetitorsAnalysis Controller:', error.message);
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = { getIndustryNews, saveSelectedNews, refreshCompetitorsAnalysis };

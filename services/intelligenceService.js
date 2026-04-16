@@ -254,4 +254,46 @@ const onboardingIndustryNewsFlow = async (userId, projectId) => {
     };
 };
 
-module.exports = { onboardingIndustryNewsFlow };
+const refreshCompetitorsFlow = async (userId, projectId) => {
+    console.log(`[Intelligence] Iniciando refresco aislado de competencia para User: ${userId}`);
+
+    const memories = await getMemoryByCategory(userId, 'Info_competencia_noticias', projectId);
+    if (!memories || memories.length === 0) {
+        throw new Error('No se encontró Info_competencia_noticias en BD.');
+    }
+
+    const infoPack = JSON.parse(memories[0].content);
+    const companyData = infoPack.pages.map(p => ({
+        url: p.url,
+        title: p.title || '',
+        text: p.text
+    }));
+
+    console.log(`[Intelligence] Generando contexto base con GPT-4o para Competidores...`);
+    const { competitorsPrompt, extractedData } = await extractCompanyDataAndBuildPrompts(companyData);
+
+    console.log(`[Intelligence] Ejecutando investigación con Kimi K2.5 (Solo Competencia)...`);
+    const competitorsResponse = await searchWithKimi(competitorsPrompt);
+
+    console.log(`[Intelligence] Guardando investigación de competencia...`);
+    const compTitle = `Análisis Competitivo (Refresh) - ${extractedData.nombre} - ${new Date().toLocaleDateString()}`;
+    await saveCompetitorsNews({
+        user_id: userId,
+        project_id: projectId,
+        title: compTitle,
+        content: competitorsResponse
+    });
+
+    console.log(`[Intelligence] Extrayendo entidades competidoras en segundo plano...`);
+    await parseAndSaveCompetitors(competitorsResponse, userId, projectId);
+
+    console.log(`[Intelligence] Refresco aislado completado con éxito.`);
+
+    return { 
+        success: true, 
+        title: compTitle,
+        content: competitorsResponse
+    };
+};
+
+module.exports = { onboardingIndustryNewsFlow, refreshCompetitorsFlow };
