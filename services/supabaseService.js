@@ -64,7 +64,6 @@ const saveIndustryNews = async (newsData) => {
 
 const appendSavedNews = async (newsId, contentToAppend) => {
     try {
-        // Obtenemos el contenido actual
         const { data: current, error: getError } = await supabase
             .from('industry_news')
             .select('saved_content')
@@ -90,9 +89,40 @@ const appendSavedNews = async (newsId, contentToAppend) => {
     }
 };
 
+const saveCompetitor = async (competitorData) => {
+    try {
+        const { data, error } = await supabase
+            .from('competitors')
+            .insert([competitorData])
+            .select('*');
+        if (error) throw error;
+        return data[0];
+    } catch (error) {
+        console.error('Error guardando competidor:', error.message);
+        // Retornamos null para que no rompa el flujo completo si uno falla
+        return null; 
+    }
+};
+
+const saveCompetitorsNews = async (newsData) => {
+    try {
+        const { data, error } = await supabase
+            .from('competitors_news')
+            .insert([newsData])
+            .select('*');
+        if (error) throw error;
+        return data[0];
+    } catch (error) {
+        console.error('Error guardando reporte de competencia:', error.message);
+        throw error;
+    }
+};
+
 module.exports = { 
     saveMemoryResource, 
     getMemoryByCategory, 
     saveIndustryNews,
-    appendSavedNews
+    appendSavedNews,
+    saveCompetitor,
+    saveCompetitorsNews
 };
