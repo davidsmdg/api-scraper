@@ -1,5 +1,5 @@
 const { getMemoryByCategory, saveIndustryNews } = require('./supabaseService');
-const { callLLM, callKimiThinking } = require('./aiService');
+const { callLLM, callKimiWithWebSearch } = require('./aiService');
 
 const generateIndustryNewsPrompt = async (companyData) => {
     const currentYear = 2026;
@@ -46,8 +46,8 @@ const searchIndustryNewsWithKimi = async (kimiPrompt) => {
         { role: 'user', content: kimiPrompt }
     ];
     
-    // Usamos el nuevo modelo de razonamiento profundo Thinking a través del SDK
-    return await callKimiThinking(messages);
+    // Usamos el cliente nativo con soporte oficial de tools (web_search)
+    return await callKimiWithWebSearch(messages);
 };
 
 // Ya no es necesario parsear noticias individuales, guardamos el bloque completo.

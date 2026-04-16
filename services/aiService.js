@@ -4,7 +4,11 @@ const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
 });
 
-// El cliente de openai ya está configurado para OpenRouter.
+// Cliente directo a la API nativa de Moonshot para el acceso a $web_search
+const moonshotClient = new OpenAI({
+    baseURL: 'https://api.moonshot.cn/v1', // El dominio según la documentación
+    apiKey: process.env.MOONSHOT_API_KEY,
+});
 
 /**
  * Genera el perfil de marca completo compatible con el frontend de Radikal IA.
@@ -113,26 +117,70 @@ const callLLM = async (model, messages, jsonMode = false, maxRetries = 3) => {
 };
 
 /**
- * Función especializada para Kimi K2 Thinking usando el cliente estándar de OpenAI.
- * Este modelo de razonamiento profundo se maneja mejor de forma síncrona para simplificar el flujo.
+ * Función especializada para Kimi usando la API nativa de Moonshot,
+ * habilitando explícitamente $web_search para búsquedas en la web en tiempo real.
  */
-const callKimiThinking = async (messages) => {
+const callKimiWithWebSearch = async (messages) => {
     try {
-        console.log("[Intelligence] Iniciando razonamiento profundo con Kimi K2 Thinking...");
+        console.log("[Intelligence] Iniciando investigación profunda en la web con la API nativa de Kimi...");
         
-        const response = await openai.chat.completions.create({
-            model: "moonshotai/kimi-k2-thinking",
-            messages: messages,
-            // Nota: Algunos modelos de razonamiento en OpenRouter prefieren stream: false para entrega final
-            stream: false 
-        });
+        const tools = [
+            {
+                "type": "builtin_function",
+                "function": {
+                    "name": "$web_search",
+                }
+            }
+        ];
 
-        return response.choices[0].message.content.trim();
+        let finishReason = null;
+        let currentMessages = [...messages];
+        
+        while (finishReason === null || finishReason === "tool_calls") {
+            const completion = await moonshotClient.chat.completions.create({
+                model: "moonshot-v1-32k", // El modelo oficial de Kimi que soporta búsquedas largas
+                messages: currentMessages,
+                temperature: 0.3,
+                tools: tools,
+            });
+
+            const choice = completion.choices[0];
+            finishReason = choice.finish_reason;
+
+            if (finishReason === "tool_calls") {
+                console.log("[Intelligence] Kimi solicitó ejecutar una herramienta (búsqueda web)...");
+                currentMessages.push(choice.message);
+
+                for (const toolCall of choice.message.tool_calls) {
+                    const toolCallName = toolCall.function.name;
+                    // Según la documentación de Moonshot, solo necesitamos devolver los argumentos generados sin procesar.
+                    const toolCallArguments = JSON.parse(toolCall.function.arguments);
+                    
+                    let toolResult = null;
+                    if (toolCallName === "$web_search") {
+                        console.log("[Intelligence] Permitiendo ejecución en la nube de $web_search por parte de Moonshot...");
+                        toolResult = toolCallArguments;
+                    } else {
+                        toolResult = "Error: no tool found";
+                    }
+
+                    // Respondemos con role "tool" para que Moonshot inyecte el resultado de la búsqueda
+                    currentMessages.push({
+                        "role": "tool",
+                        "tool_call_id": toolCall.id,
+                        "name": toolCallName,
+                        "content": JSON.stringify(toolResult),
+                    });
+                }
+            } else {
+                console.log("[Intelligence] Búsqueda y razonamiento completados por Kimi.");
+                return choice.message.content.trim();
+            }
+        }
     } catch (error) {
-        console.error("Error en callKimiThinking:", error.message);
-        // Fallback al modelo estándar si falla el razonamiento
-        return await callLLM('moonshotai/kimi-k2.5', messages);
+        console.error("Error en callKimiWithWebSearch:", error.message);
+        throw error;
     }
 };
 
-module.exports = { generateStructuralProfile, analyzeImageDirecting, callLLM, callKimiThinking };
+module.exports = { generateStructuralProfile, analyzeImageDirecting, callLLM, callKimiWithWebSearch };
