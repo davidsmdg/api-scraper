@@ -7,43 +7,51 @@ const openai = new OpenAI({
 
 /**
  * Genera el perfil de marca completo compatible con el frontend de Radikal IA.
- * Sigue el esquema exacto de BrandTab.tsx y MemoryPage.tsx
+ * Utilizando el esquema mejorado y crítico de n8n para análisis estratégico profundo.
  */
-const generateStructuralProfile = async (text) => {
+const generateStructuralProfile = async (text, imagesAnalysisText = "") => {
     try {
         const response = await openai.chat.completions.create({
-            model: 'openai/gpt-4o-mini',
+            model: 'openai/gpt-4o', // Usamos el modelo principal para un razonamiento más profundo
             messages: [{ 
                 role: 'system',
-                content: 'Actúa como un Consultor Senior de Estrategia de Marca y Especialista en Identidad Visual. Tu objetivo es destilar la esencia de una marca a partir de texto extraído de su web.'
+                content: 'Rol: Eres un experto Analista Estratégico de Negocios, Especialista en Branding y Diseñador UX/UI. Tu objetivo es analizar datos extraídos de una página web y el análisis visual de sus imágenes para generar un reporte de hallazgos (insights) integral, estructurado y de alto valor.'
             }, { 
                 role: 'user', 
-                content: `Analiza la siguiente información y genera un perfil de marca exhaustivo. 
-                
-                Debes devolver UNICAMENTE un objeto JSON con la siguiente estructura exacta:
-                {
-                  "identidad_esencia": "Descripción profunda de la misión, visión y propósito central.",
-                  "portafolio_productos": "Resumen de lo que ofrecen (productos/servicios).",
-                  "ventaja_competitiva": "Qué los hace únicos frente a otros.",
-                  "tono_comunicacion": "Cómo habla la marca (ej: Formal, disruptivo, amigable).",
-                  "sistema_cromatico": {
-                    "colores_acento_marca": ["#HEX1", "#HEX2"],
-                    "colores_neutros_funcionales": ["#HEX3", "#HEX4"],
-                    "analisis": "Breve explicación de por qué usan estos colores."
-                  },
-                  "direccion_visual_imagenes": "Estilo visual predominante (fotografía, ilustración, minimalismo, etc.).",
-                  "perfil_audiencia": "A quién se dirigen (demografía y psicografía).",
-                  "presencia_ubicaciones": "Dónde están físicamente o alcance geográfico si es digital.",
-                  "canales_contacto": "Redes sociales, whatsapp, email detectados.",
-                  "oportunidades_mejora": "Qué áreas pueden potenciar según su presencia actual."
-                }
+                content: `ENTRADAS DE DATOS DINÁMICOS:
+Datos Web: ${text.slice(0, 30000)}
+Análisis de Imágenes: ${imagesAnalysisText}
 
-                Texto extraído:
-                ${text}` 
-            }],
-            response_format: { type: 'json_object' }
+INSTRUCCIONES DE ANÁLISIS Y REDACCIÓN:
+1. Analiza los datos web para entender el modelo de negocio completo y los datos de imágenes para definir la dirección de arte.
+2. Evalúa las estadísticas de color: asume que los colores frecuentes son funcionales y busca en 'brand_colors_guess' los de identidad. Extrae obligatoriamente los códigos HEX. (De no encontrar, infiere colores principales por tu análisis).
+3. EXTENSIÓN OBLIGATORIA: En cada campo de texto descriptivo/analítico, debes escribir entre 5 y 7 líneas de texto.
+4. ENFOQUE CRÍTICO: En cada análisis, además de describir, debes identificar explícitamente una oportunidad de mejora, una brecha detectada o una crítica constructiva relacionada con ese punto.
+
+⚠️ DIRECTRICES DE SISTEMA CRÍTICAS (NIVEL MÁQUINA A MÁQUINA) ⚠️
+Tu respuesta será procesada directamente por un script automatizado. Cualquier violación a las siguientes reglas causará un error fatal en el sistema.
+
+- REGLA 1 (CERO TEXTO ADICIONAL): No incluyas saludos, introducciones, explicaciones, ni notas finales. Tu respuesta debe comenzar con el carácter "{" y terminar con el carácter "}".
+- REGLA 2 (PROHIBIDO MARKDOWN): ESTÁ ESTRICTAMENTE PROHIBIDO usar bloques de código Markdown. NO uses \`\`\`json, ni \`\`\` al principio o al final de tu respuesta.
+- REGLA 3 (MINIFICACIÓN OBLIGATORIA): Devuelve el JSON en UNA SOLA LÍNEA DE TEXTO. No uses saltos de línea literales (ni presiones "Enter"). Todo debe ser continuo.
+- REGLA 4 (ESCAPADO CORRECTO): Si necesitas usar comillas dobles dentro de tus textos analíticos, debes escaparlas obligatoriamente (ejemplo: \\"texto\\").
+- REGLA 5 (ESTRUCTURA INMUTABLE): Usa EXACTAMENTE las claves proporcionadas en el esquema base. No inventes claves nuevas, ni agregues arrays u objetos anidados que no se hayan solicitado.
+
+ESQUEMA BASE REQUERIDO (REPLICAR EXACTAMENTE ESTA ESTRUCTURA EN UNA SOLA LÍNEA):
+{"identidad_esencia": "Resumen de historia/origen y propuesta de valor + Crítica sobre la claridad/relevancia del mensaje actual.","portafolio_productos": "Categorías principales y líneas de negocio + Análisis crítico de la arquitectura del portafolio o brechas en la oferta.","ventaja_competitiva": "Tecnologías y diferenciadores clave + Evaluación de si la ventaja es sostenible o bien comunicada.","tono_comunicacion": "Personalidad y voz de la marca + Crítica sobre la coherencia o el nivel de engagement del tono.","sistema_cromatico": {"colores_neutros_funcionales": ["#HEX1", "#HEX2", "#HEX3"],"colores_acento_marca": ["#HEX4", "#HEX5"],"analisis": "Análisis de contraste, accesibilidad o psicología del color basado en los códigos extraídos + Crítica sobre el uso del color y coherencia. (Debe cumplir la regla de 5 a 7 líneas)."},"direccion_visual_imagenes": "Estilo fotográfico, empaques y composición + Mejoras sugeridas en dirección de arte o consistencia.","presencia_ubicaciones": "Formatos físicos y geografía + Análisis de cobertura o estrategia de localización.","perfil_audiencia": "Segmentación deducida + Identificación de nichos desatendidos o audiencias potenciales.","canales_contacto": "Ecosistema de atención + Crítica sobre la fricción en la experiencia de contacto (CX).","oportunidades_mejora": "Sugerencias estratégicas macro (visual, navegación, comunicación) + Priorización de acciones de alto impacto."}` 
+            }]
         });
-        return JSON.parse(response.choices[0].message.content);
+        
+        let rawContent = response.choices[0].message.content.trim();
+        
+        // Safety net por si el modelo devuelve markdown a pesar de las instrucciones
+        if (rawContent.startsWith('```json')) {
+            rawContent = rawContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (rawContent.startsWith('```')) {
+            rawContent = rawContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+
+        return JSON.parse(rawContent);
     } catch (error) {
         console.error('Error en generateStructuralProfile:', error.message);
         return null;
