@@ -79,23 +79,36 @@ const analyzeImageDirecting = async (imageUrl) => {
     }
 };
 
-const callLLM = async (model, messages, jsonMode = false) => {
-    try {
-        const options = {
-            model: model,
-            messages: messages
-        };
-        
-        if (jsonMode) {
-            options.response_format = { type: 'json_object' };
-        }
+const callLLM = async (model, messages, jsonMode = false, maxRetries = 3) => {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const options = {
+                model: model,
+                messages: messages
+            };
+            
+            if (jsonMode) {
+                options.response_format = { type: 'json_object' };
+            }
 
-        const response = await openai.chat.completions.create(options);
-        return response.choices[0].message.content.trim();
-    } catch (error) {
-        console.error(`Error llamando a LLM (${model}):`, error.message);
-        throw error;
+            const response = await openai.chat.completions.create(options);
+            return response.choices[0].message.content.trim();
+        } catch (error) {
+            lastError = error;
+            console.error(`Intento ${attempt}/${maxRetries} fallido llamando a LLM (${model}):`, error.message);
+            
+            if (attempt < maxRetries) {
+                const delay = Math.pow(2, attempt) * 1000; // 2s, 4s...
+                console.log(`Reintentando en ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
     }
+    
+    console.error(`Error definitivo tras ${maxRetries} intentos en LLM (${model}):`, lastError.message);
+    throw lastError;
 };
 
 module.exports = { generateStructuralProfile, analyzeImageDirecting, callLLM };
