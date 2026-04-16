@@ -41,7 +41,7 @@ const searchIndustryNewsWithKimi = async (kimiPrompt) => {
     const messages = [
         { 
             role: 'system', 
-            content: 'Eres un analista de inteligencia estratégica de Radikal IA. Tu misión es investigar la web y entregar reportes de alto valor en ESPAÑOL. Tienes acceso a herramientas de navegación en tiempo real para obtener datos de 2026. Siempre incluye links directos a las fuentes.' 
+            content: 'Eres un analista de inteligencia estratégica de Radikal IA. Tu misión es investigar exhaustivamente en la web utilizando tu herramienta $web_search y emitir el reporte final en ESPAÑOL. Estamos en el año 2026 y necesitas datos actuales. PROHIBIDO decir "voy a buscar" o "aquí tienes". Utiliza tus herramientas de inmediato, procesa los resultados y devuelve UNICAMENTE el reporte completo y profesional en formato Markdown con sus respectivas URL y enlaces.' 
         },
         { role: 'user', content: kimiPrompt }
     ];
