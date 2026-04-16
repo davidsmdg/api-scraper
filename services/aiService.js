@@ -1,9 +1,18 @@
 const { OpenAI } = require('openai');
-
 const openai = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
     apiKey: process.env.OPENROUTER_API_KEY,
 });
+
+// Importación dinámica para el SDK de OpenRouter si es necesario, 
+// o uso de require si el paquete lo soporta.
+let OpenRouter;
+try {
+    const sdk = require("@openrouter/sdk");
+    OpenRouter = sdk.OpenRouter;
+} catch (e) {
+    console.warn("Error cargando @openrouter/sdk con require, se intentará dinámicamente si es necesario.");
+}
 
 /**
  * Genera el perfil de marca completo compatible con el frontend de Radikal IA.
@@ -111,4 +120,41 @@ const callLLM = async (model, messages, jsonMode = false, maxRetries = 3) => {
     throw lastError;
 };
 
-module.exports = { generateStructuralProfile, analyzeImageDirecting, callLLM };
+/**
+ * Función especializada para Kimi K2 Thinking usando el SDK de OpenRouter.
+ * Esto permite manejar el razonamiento profundo y el stream solicitado.
+ */
+const callKimiThinking = async (messages) => {
+    if (!OpenRouter) {
+        console.log("Usando fallback de OpenAI client para Kimi Thinking...");
+        return await callLLM('moonshotai/kimi-k2-thinking', messages);
+    }
+
+    const openrouter = new OpenRouter({
+        apiKey: process.env.OPENROUTER_API_KEY
+    });
+
+    try {
+        console.log("[Intelligence] Iniciando razonamiento profundo con Kimi K2 Thinking...");
+        const stream = await openrouter.chat.send({
+            model: "moonshotai/kimi-k2-thinking",
+            messages: messages,
+            stream: true
+        });
+
+        let fullResponse = "";
+        for await (const chunk of stream) {
+            const content = chunk.choices[0]?.delta?.content;
+            if (content) {
+                fullResponse += content;
+            }
+        }
+        return fullResponse.trim();
+    } catch (error) {
+        console.error("Error en callKimiThinking:", error.message);
+        // Fallback al cliente estándar si falla el SDK
+        return await callLLM('moonshotai/kimi-k2-thinking', messages);
+    }
+};
+
+module.exports = { generateStructuralProfile, analyzeImageDirecting, callLLM, callKimiThinking };

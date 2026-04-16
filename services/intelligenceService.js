@@ -1,5 +1,5 @@
 const { getMemoryByCategory, saveIndustryNews } = require('./supabaseService');
-const { callLLM } = require('./aiService');
+const { callLLM, callKimiThinking } = require('./aiService');
 
 const generateIndustryNewsPrompt = async (companyData) => {
     const currentYear = 2026;
@@ -41,11 +41,13 @@ const searchIndustryNewsWithKimi = async (kimiPrompt) => {
     const messages = [
         { 
             role: 'system', 
-            content: 'Eres un analista de inteligencia estratégica de Radikal IA. Tu misión es investigar la web y entregar reportes de alto valor en ESPAÑOL. Siempre incluye links directos a las fuentes y usa un tono profesional.' 
+            content: 'Eres un analista de inteligencia estratégica de Radikal IA. Tu misión es investigar la web y entregar reportes de alto valor en ESPAÑOL. Tienes acceso a herramientas de navegación en tiempo real para obtener datos de 2026. Siempre incluye links directos a las fuentes.' 
         },
         { role: 'user', content: kimiPrompt }
     ];
-    return await callLLM('moonshotai/kimi-k2.5', messages);
+    
+    // Usamos el nuevo modelo de razonamiento profundo Thinking a través del SDK
+    return await callKimiThinking(messages);
 };
 
 // Ya no es necesario parsear noticias individuales, guardamos el bloque completo.
