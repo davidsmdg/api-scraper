@@ -86,56 +86,113 @@ Lista de todas las fuentes.
 
 EJECUTA ESTO AHORA MISMO. EN TU RESPUESTA SÓLO QUIERO VER EL REPORTE MARKDOWN FINALIZADO.`;
 
-    // AHORA construimos el prompt final para COMPETIDORES
+    // AHORA construimos el prompt final para COMPETIDORES íntegro y exhaustivo
     const competitorsPrompt = `Actúa como analista estratégico senior especializado en inteligencia competitiva internacional.
-
-=============================
-# Informe de Inteligencia Competitiva: ${extractedData.nombre}
-**Elaborado por: Radikal IA**
-=============================
 
 Empresa objetivo:
 Nombre: ${extractedData.nombre}
 Web: ${extractedData.web}
-Contexto de la empresa: ${extractedData.resumen}
+
+Contexto de la empresa (extraído de su sitio web):
+${extractedData.resumen}
 
 Información estratégica detectada:
-- Industria principal: ${extractedData.industria}
-- Subsector o nicho: ${extractedData.subsector}
-- Modelo de negocio: ${extractedData.modelo}
-- Ubicación o mercado geográfico: ${extractedData.paises}
+Industria principal:
+${extractedData.industria}
 
-INSTRUCCIONES DE INVESTIGACIÓN: INICIA TU HERRAMIENTA $web_search AHORA MISMO.
-NO SALUDES NI EXPLIQUES, ENTREGA EL REPORTE FINAL DE INMEDIATO EN MARKDOWN AL FINALIZAR TUS BÚSQUEDAS.
+Subsector o nicho:
+${extractedData.subsector}
+
+Modelo de negocio:
+${extractedData.modelo}
+
+Ubicación o mercado geográfico:
+${extractedData.paises}
+
+=======================================
+INSTRUCCIONES CRÍTICAS: USA TU HERRAMIENTA $web_search Y EJECUTA EL ANÁLISIS EN LA WEB AHORA MISMO.
+NO SALUDES. ENTREGA OBLIGATORIAMENTE SÓLO EL MARDOWN RESULTANTE.
+=======================================
 
 Paso 1 – Determinar países válidos
-Solo considera los países extraídos: ${extractedData.paises}. El análisis competitivo debe limitarse a estos países.
+Antes de identificar competidores:
+Extrae únicamente los países o ciudades donde la empresa opera que estén explícitamente mencionados en su sitio web (${extractedData.paises}).
+Solo considera como válidos países que aparezcan en: sección “Dónde operamos”, oficinas o sedes, contactos por país, direcciones físicas, dominios o subdominios por país, mapa de presencia corporativa.
+❗ No infieras países
+❗ No asumas expansión futura
+❗ No utilices países mencionados en noticias externas
+Si no hay países explícitos, indica: "Sin países explícitos en el sitio web."
+
+Alcance del análisis
+El análisis competitivo debe limitarse a los países válidos identificados. 
+No incluyas: mercados potenciales, regiones inferidas ni competidores que operen solo fuera de esos países.
 
 Proceso de investigación competitiva
-Realiza la búsqueda guiándote por estas directrices:
+Realiza investigación exhaustiva estructurándola en la web así:
+
+Etapa 1 — Descubrimiento de competidores
+Identifica empresas que ofrezcan productos o servicios similares, resuelvan el mismo problema del cliente, compitan por el mismo segmento y tengan modelo de negocio comparable.
+Incluye también: sustitutos directos, soluciones alternativas, plataformas tecnológicas que compitan por el mismo presupuesto del cliente. Genera una lista inicial amplia en tu memoria.
+
+Etapa 2 — Validación geográfica
+Para cada empresa identificada, verifica con $web_search si tiene presencia en al menos uno de los países válidos. 
+La evidencia puede incluir: oficinas, operaciones comerciales, clientes en ese país, páginas locales, presencia en marketplaces o partners.
+Elimina empresas sin evidencia de presencia en esos países.
+
+Etapa 3 — Validación competitiva
+Confirma que cada empresa restante: ofrece una solución realmente comparable, compite por el mismo problema del cliente, tiene modelo de negocio equivalente o sustituto relevante. Solo después de esta validación genera el listado final.
+
+FORMATO DEL INFORME FINAL A ENTREGAR (Obligatorio respetar):
 
 Fase 1 – Identificación de competidores
-Selecciona entre 5 y 10 competidores reales. Para cada uno incluye:
+Selecciona entre 5 y 10 competidores reales resultantes.
+Para cada competidor incluye obligatoriamente:
 - Nombre
 - Web oficial
 - País sede
-- País donde compite con la empresa
-- Modelo de negocio
-- Evidencia verificable de competencia (LINK OBLIGATORIO). Si no hay evidencia, no lo incluyas.
+- País donde compite con la empresa (debe coincidir con países válidos)
+- Modelo de negocio (máx 60 palabras)
+- Evidencia verificable de competencia (INCLUYE OBLIGATORIAMENTE URL DIRECTA CLICKABLE a una página de producto comparable, servicio, pricing, etc. ⚠️ Si no hay evidencia clara, no incluyas el competidor).
 
 Fase 2 – Clasificación estratégica
-Nivel 1 (Crítica), Nivel 2 (Diferenciada), Nivel 3 (Sustituto), Nivel 4 (Referente).
+Clasifica cada competidor en uno de estos niveles:
+- Nivel 1 — Competencia Directa Crítica
+- Nivel 2 — Competencia Directa Diferenciada
+- Nivel 3 — Sustituto o Disruptivo
+- Nivel 4 — Referente Estratégico
+La clasificación debe basarse únicamente en: similitud del producto, coincidencia de cliente objetivo y presencia en países válidos.
 
 Fase 3 – Evaluación cuantitativa
-Evalúa del 1 al 5: Participación estimada, Innovación, Fortaleza digital, Experiencia cliente, Poder de pricing, Escalabilidad. Calcula un score sobre 100.
+Evalúa cada competidor del 1 al 5 en:
+- Participación estimada en los países válidos
+- Innovación observable
+- Fortaleza digital
+- Experiencia de cliente
+- Diferenciación estratégica
+- Poder de pricing
+- Escalabilidad en esos países
+- Crecimiento visible
+Reglas: No asignar 5 sin evidencia clara. Justificar puntuaciones ≥4. Si falta información, usar valoración conservadora. No evaluar crecimiento en países no válidos. 
+Calcula un score sobre 100 y genera un ranking descendente.
 
 Fase 4 – Análisis profundo (Top 3)
-Analiza Modelo de negocio, Ventajas, Estrategia digital, Capacidad competitiva, Probabilidad de quitar cuota.
+Para los tres competidores con mayor score analiza: Modelo de negocio detallado, Ventajas estructurales, Debilidades, Estrategia digital, Uso de tecnología o IA, Capacidad competitiva en los países válidos, Probabilidad de quitar cuota de mercado en 12 meses (Alta / Media / Baja).
 
 Fase 5 – Diagnóstico estratégico
-Responde: amenaza real en 12 meses, mayor riesgo estructural, y propone 3 acciones estratégicas concretas para 90 días.
+Responde:
+1. ¿Quién es la amenaza real en 12 meses en los países válidos?
+2. ¿Quién puede escalar más fuerte en 3 años en esos mercados?
+3. ¿Qué competidor representa mayor presión competitiva local?
+4. ¿Cuál de los países válidos representa mayor riesgo competitivo?
+5. ¿Cuál es el mayor riesgo estructural para la empresa analizada en sus mercados actuales?
 
-ENTREGA EXCLUSIVAMENTE EL REPORTE MARKDOWN COMPLETO. TE ESTÁ PROHIBIDO SALUDAR NI EXPLICAR QUÉ VAS A BUSCAR.`;
+Recomendaciones estratégicas
+Propón 3 acciones estratégicas concretas para ejecutar en 90 días.
+Las acciones deben: ser específicas, ser aplicables dentro de los países válidos, evitar recomendaciones genéricas.
+
+Reglas de salida absolutas:
+Tu respuesta debe ser únicamente el reporte técnico final generado de la investigación.
+No expliques tu razonamiento. No incluyas comentarios adicionales preparatorios. No saludes.`;
 
     return { newsPrompt, competitorsPrompt, extractedData };
 };
