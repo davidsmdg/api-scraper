@@ -2,6 +2,7 @@ const { mapWebsiteLinks } = require('../services/firecrawlService');
 const { scrapeUrls } = require('../services/scraperService');
 const { saveMemoryResource, updateProjectLogo } = require('../services/supabaseService');
 const { generateStructuralProfile, analyzeImageDirecting } = require('../services/aiService');
+const { onboardingIndustryNewsFlow } = require('../services/intelligenceService');
 
 // --- NUEVOS HELPERS PARA EXTRACCIÓN DE LOGO (REFINADOS) ---
 function toStr(v) { return v == null ? "" : String(v); }
@@ -284,6 +285,14 @@ const startOnboarding = async (req, res) => {
                     JSON.stringify(brandProfile),
                     'text'
                 );
+            }
+
+            // 7. Búsqueda de Noticias de Industria (NUEVO)
+            console.log(`[Job ID: ${jobId}] 📰 Iniciando investigación sectorial con Kimi K2.5...`);
+            try {
+                await onboardingIndustryNewsFlow(userId, projectId);
+            } catch (newsError) {
+                console.error(`[Job ID: ${jobId}] ⚠️ Error no fatal en búsqueda de noticias:`, newsError.message);
             }
 
             console.log(`[Job ID: ${jobId}] 🏁 PROCESO FINALIZADO CON ÉXITO.`);

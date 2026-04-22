@@ -1,5 +1,4 @@
 const { OpenAI } = require('openai');
-
 const openai = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
     apiKey: process.env.OPENROUTER_API_KEY,
@@ -12,7 +11,7 @@ const openai = new OpenAI({
 const generateStructuralProfile = async (text, imagesAnalysisText = "") => {
     try {
         const response = await openai.chat.completions.create({
-            model: 'openai/gpt-4o', // Usamos el modelo principal para un razonamiento más profundo
+            model: 'openai/gpt-4o', 
             messages: [{ 
                 role: 'system',
                 content: 'Rol: Eres un experto Analista Estratégico de Negocios, Especialista en Branding y Diseñador UX/UI. Tu objetivo es analizar datos extraídos de una página web y el análisis visual de sus imágenes para generar un reporte de hallazgos (insights) integral, estructurado y de alto valor.'
@@ -44,7 +43,6 @@ ESQUEMA BASE REQUERIDO (REPLICAR EXACTAMENTE ESTA ESTRUCTURA EN UNA SOLA LÍNEA)
         
         let rawContent = response.choices[0].message.content.trim();
         
-        // Safety net por si el modelo devuelve markdown a pesar de las instrucciones
         if (rawContent.startsWith('```json')) {
             rawContent = rawContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
         } else if (rawContent.startsWith('```')) {
@@ -58,9 +56,6 @@ ESQUEMA BASE REQUERIDO (REPLICAR EXACTAMENTE ESTA ESTRUCTURA EN UNA SOLA LÍNEA)
     }
 };
 
-/**
- * Analiza la dirección de arte de una imagen individual.
- */
 const analyzeImageDirecting = async (imageUrl) => {
     try {
         const response = await openai.chat.completions.create({
@@ -75,7 +70,6 @@ const analyzeImageDirecting = async (imageUrl) => {
             response_format: { type: 'json_object' }
         });
         const result = JSON.parse(response.choices[0].message.content);
-        // Nos aseguramos de incluir la URL por si la IA no la puso
         result.url = imageUrl;
         return result;
     } catch (error) {
@@ -84,4 +78,111 @@ const analyzeImageDirecting = async (imageUrl) => {
     }
 };
 
-module.exports = { generateStructuralProfile, analyzeImageDirecting };
+const callLLM = async (model, messages, jsonMode = false, maxRetries = 3) => {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const options = {
+                model: model,
+                messages: messages
+            };
+            
+            if (jsonMode) {
+                options.response_format = { type: 'json_object' };
+            }
+
+            const response = await openai.chat.completions.create(options);
+            return response.choices[0].message.content.trim();
+        } catch (error) {
+            lastError = error;
+            console.error(`Intento ${attempt}/${maxRetries} fallido llamando a LLM (${model}):`, error.message);
+            
+            if (attempt < maxRetries) {
+                const delay = Math.pow(2, attempt) * 1000; // 2s, 4s...
+                console.log(`Reintentando en ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    
+    console.error(`Error definitivo tras ${maxRetries} intentos en LLM (${model}):`, lastError.message);
+    throw lastError;
+};
+
+/**
+ * Función especializada para Kimi usando la API nativa de Moonshot,
+ * habilitando explícitamente $web_search y deshabilitando "thinking"
+ * según la documentación oficial para evitar problemas de razonamiento.
+ */
+const callKimiWithWebSearch = async (messages) => {
+    try {
+        console.log("[Intelligence] Iniciando investigación profunda en la web con la API nativa de Kimi...");
+        
+        // Inicialización dinámica para garantizar la lectura de process.env.MOONSHOT_API_KEY
+        // y usando la URL exacta proporcionada en el ejemplo: api.moonshot.ai
+        const moonshotClient = new OpenAI({
+            baseURL: 'https://api.moonshot.ai/v1',
+            apiKey: process.env.MOONSHOT_API_KEY,
+        });
+
+        const tools = [
+            {
+                "type": "builtin_function",
+                "function": {
+                    "name": "$web_search",
+                }
+            }
+        ];
+
+        let finishReason = null;
+        let currentMessages = [...messages];
+        
+        while (finishReason === null || finishReason === "tool_calls") {
+            const completion = await moonshotClient.chat.completions.create({
+                model: "kimi-k2.5", 
+                messages: currentMessages,
+                temperature: 0.6,
+                tools: tools,
+                thinking: {"type": "disabled"} // Crítico según la documentación
+            });
+
+            const choice = completion.choices[0];
+            finishReason = choice.finish_reason;
+
+            if (finishReason === "tool_calls") {
+                console.log("[Intelligence] Kimi solicitó ejecutar una herramienta (búsqueda web)...");
+                currentMessages.push(choice.message);
+
+                for (const toolCall of choice.message.tool_calls) {
+                    const toolCallName = toolCall.function.name;
+                    const toolCallArguments = JSON.parse(toolCall.function.arguments);
+                    
+                    let toolResult = null;
+                    if (toolCallName === "$web_search") {
+                        console.log("[Intelligence] Procesando argumentos para la búsqueda web de Moonshot...");
+                        toolResult = toolCallArguments; // Se devuelve tal cual
+                    } else {
+                        toolResult = "no tool found";
+                    }
+
+                    // Inyectar contexto de la herramienta
+                    currentMessages.push({
+                        "role": "tool",
+                        "tool_call_id": toolCall.id,
+                        "name": toolCallName,
+                        "content": JSON.stringify(toolResult),
+                    });
+                }
+            } else {
+                console.log("[Intelligence] Búsqueda y análisis completados por Kimi.");
+                return choice.message.content.trim();
+            }
+        }
+    } catch (error) {
+        console.error("Error en callKimiWithWebSearch:", error.message);
+        throw error;
+    }
+};
+
+module.exports = { generateStructuralProfile, analyzeImageDirecting, callLLM, callKimiWithWebSearch };

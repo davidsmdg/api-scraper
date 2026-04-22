@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const onboardingRoutes = require('./routes/onboardingRoutes');
+const intelligenceRoutes = require('./routes/intelligenceRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 // ==========================================
 // 1. CONFIGURACIÓN DE SEGURIDAD Y CORS
 // ==========================================
-app.use(cors()); // Soporte básico de CORS para Easypanel
+app.use(cors()); 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: false
@@ -21,7 +22,6 @@ app.use(helmet({
 // ==========================================
 // 2. CONFIGURACIÓN DE LÍMITES (CRÍTICO)
 // ==========================================
-// Aumentamos el límite a 50mb para recibir HTMLs pesados de scraping
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(morgan('combined')); 
@@ -39,6 +39,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api', onboardingRoutes);
+app.use('/api/intelligence', intelligenceRoutes);
 
 // ==========================================
 // 4. INICIO DEL SERVIDOR Y CONFIGURACIÓN DE TIEMPO
@@ -51,8 +52,6 @@ const server = app.listen(PORT, () => {
     console.log(`======================================================\n`);
 });
 
-// CONFIGURACIÓN CRÍTICA PARA PROCESOS LARGOS: Aumentamos el tiempo de espera a 10 minutos
-// Esto evita que el socket se cierre mientras Puppeteer y la IA trabajan en backend.
 server.timeout = 600000;
 server.keepAliveTimeout = 600000;
 server.headersTimeout = 600000;
