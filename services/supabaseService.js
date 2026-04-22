@@ -27,4 +27,18 @@ const saveMemoryResource = async (userId, projectId, category, title, content, r
     }
 };
 
-module.exports = { saveMemoryResource };
+const updateProjectLogo = async (projectId, logoUrl) => {
+    try {
+        const { data, error } = await supabase
+            .from('projects')
+            .update({ logo_url: logoUrl })
+            .eq('id', projectId);
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error actualizando logo del proyecto:', error.message);
+    }
+};
+
+module.exports = { saveMemoryResource, updateProjectLogo };

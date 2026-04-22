@@ -15,7 +15,11 @@ const mapWebsiteLinks = async (url) => {
         
         if (!mapResult || !mapResult.success) {
             console.warn(`[Firecrawl] ⚠️ Map falló o no fue exitoso. Usando URL base.`);
-            return [url];
+            return { 
+                success: false, 
+                links: [url], 
+                error: mapResult?.error || 'No se recibieron enlaces de Firecrawl' 
+            };
         }
         
         // Mapeamos objetos de link a strings de URL
@@ -27,11 +31,17 @@ const mapWebsiteLinks = async (url) => {
         }
         
         console.log(`[Firecrawl] ✅ Mapeo completado. Encontrados ${links.length} enlaces relevantes.`);
-        return links;
+        return { 
+            success: true, 
+            links: links 
+        };
     } catch (error) {
         console.error('[Firecrawl] ❌ Error durante el mapeo:', error.message);
-        // Resiliencia: Si falla, devolvemos un array con la URL principal
-        return [url];
+        return { 
+            success: false, 
+            links: [url], 
+            error: error.message 
+        };
     }
 };
 

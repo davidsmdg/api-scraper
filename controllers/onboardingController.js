@@ -1,9 +1,11 @@
 const { mapWebsiteLinks } = require('../services/firecrawlService');
 const { scrapeUrls } = require('../services/scraperService');
-const { saveMemoryResource } = require('../services/supabaseService');
+const { saveMemoryResource, updateProjectLogo } = require('../services/supabaseService');
 const { generateStructuralProfile, analyzeImageDirecting } = require('../services/aiService');
 
-// Funciones Auxiliares para asegurar manejo de URLs impecable
+// --- NUEVOS HELPERS PARA EXTRACCIÓN DE LOGO (REFINADOS) ---
+function toStr(v) { return v == null ? "" : String(v); }
+
 function getBaseDomain(fullUrl) {
     if (!fullUrl || typeof fullUrl !== "string") return "";
     const parts = fullUrl.split("/");
@@ -16,22 +18,42 @@ function getBaseDomain(fullUrl) {
     return "";
 }
 
-function fixUrl(url, baseDomain) {
-    if (typeof url !== "string") return null;
-    let u = url.trim();
-    if (!u || u.length < 2) return null;
-    if (u === "null" || u === "undefined") return null;
+function normalizeUrl(raw, baseUrl) {
+    const s = toStr(raw).trim().replace(/&/g, "&");
+    if (!s) return "";
+    if (/^https?:\/\//i.test(s)) return s;
+    if (s.startsWith("//")) return "https:" + s;
 
-    if (u.startsWith("http://") || u.startsWith("https://")) return u;
-    if (u.startsWith("//")) return "https:" + u;
+    let safeBase = toStr(baseUrl).trim();
+    if (safeBase && !/^https?:\/\//i.test(safeBase)) {
+        safeBase = "https://" + safeBase;
+    }
+    const domain = getBaseDomain(safeBase);
+    if (!domain) return s;
 
-    const cleanBase = baseDomain.endsWith("/") ? baseDomain.slice(0, -1) : baseDomain;
-    const cleanPath = u.startsWith("/") ? u : "/" + u;
+    const cleanBase = domain.endsWith("/") ? domain.slice(0, -1) : domain;
+    const cleanPath = s.startsWith("/") ? s : "/" + s;
     return cleanBase + cleanPath;
 }
 
+function pickMeta(html, prop) {
+    const re = new RegExp(`<meta\\b[^>]*\\b(property|name)\\s*=\\s*["']${prop}["'][^>]*>`, "i");
+    const m = html.match(re);
+    if (!m) return "";
+    const c = m[0].match(/\bcontent\s*=\s*["']([\s\S]*?)["']/i);
+    return c ? c[1].trim() : "";
+}
+
+function pickLinkRel(html, rel) {
+    const re = new RegExp(`<link\\b[^>]*\\brel\\s*=\\s*["'][^"']*${rel}[^"']*["'][^>]*>`, "i");
+    const m = html.match(re);
+    if (!m) return "";
+    const h = m[0].match(/\bhref\s*=\s*["']([\s\S]*?)["']/i);
+    return h ? h[1].trim() : "";
+}
+
 function isJunk(url) {
-    const lower = url.toLowerCase();
+    const lower = toStr(url).toLowerCase();
     return lower.includes("facebook.com/tr") || 
            lower.includes("linkedin.com/collect") || 
            lower.includes("google-analytics.com") ||
@@ -73,9 +95,16 @@ const startOnboarding = async (req, res) => {
             
             // 1. Mapeo (Firecrawl)
             console.log(`[Job ID: ${jobId}] 🌐 Mapeando estructura web de ${mainUrl}...`);
-            const allLinks = await mapWebsiteLinks(mainUrl);
+            const mapResult = await mapWebsiteLinks(mainUrl);
+            const allLinks = mapResult.links;
             
-            console.log(`[Job ID: ${jobId}] 💾 Guardando ${allLinks.length} subpáginas descubiertas...`);
+            if (mapResult.success) {
+                console.log(`[Job ID: ${jobId}] ✅ Firecrawl mapeó exitosamente ${allLinks.length} enlaces.`);
+            } else {
+                console.warn(`[Job ID: ${jobId}] ⚠️ Firecrawl falló (${mapResult.error || 'error desconocido'}). Usando URL base como respaldo.`);
+            }
+            
+            console.log(`[Job ID: ${jobId}] 💾 Guardando subpáginas descubiertas...`);
             for (const link of allLinks) {
                 await saveMemoryResource(userId, projectId, 'market_analisis', `Link extraído: ${link}`, link, 'link');
             }
@@ -92,17 +121,38 @@ const startOnboarding = async (req, res) => {
             scrapingResults.forEach(r => {
                 if (!r.success) return;
                 const pageUrl = r.url;
+                const html = r.html;
                 const baseDom = getBaseDomain(pageUrl);
                 
-                // Extracción más profunda y segura de imágenes
+                // Si es la home, buscamos metas especiales de logo
+                if (pageUrl === mainUrl || pageUrl === mainUrl + "/" || mainUrl === pageUrl + "/") {
+                    const ogLogo = pickMeta(html, "og:logo");
+                    const appleIcon = pickLinkRel(html, "apple-touch-icon");
+                    const favicon = pickLinkRel(html, "icon") || pickLinkRel(html, "shortcut icon");
+                    
+                    let ogImageCandidate = pickMeta(html, "og:image");
+                    // Evitar usar la URL de la web como imagen si viene en og:image por error
+                    if (ogImageCandidate === mainUrl || ogImageCandidate === mainUrl + "/") ogImageCandidate = "";
+
+                    [ogLogo, ogImageCandidate, appleIcon, favicon].forEach(u => {
+
+                        const fixed = normalizeUrl(u, baseDom);
+                        if (fixed && !seen.has(fixed)) {
+                            seen.add(fixed);
+                            candidates.push({ url: fixed, kind: 'logo', source_page: pageUrl, priority: true });
+                        }
+                    });
+                }
+
+                // Extracción de imágenes normales
                 const imgRegex = /<img[^>]+src=["']([^"'>]+)["'][^>]*>/gi;
                 let match;
-                while ((match = imgRegex.exec(r.html)) !== null) {
+                while ((match = imgRegex.exec(html)) !== null) {
                     const rawSrc = match[1];
                     const altMatch = match[0].match(/alt=["']([^"']*)["']/i);
                     const alt = altMatch ? altMatch[1] : "";
                     
-                    const fixedUrl = fixUrl(rawSrc, baseDom);
+                    const fixedUrl = normalizeUrl(rawSrc, baseDom);
                     if (fixedUrl && !isJunk(fixedUrl) && !seen.has(fixedUrl)) {
                         seen.add(fixedUrl);
                         const kind = guessKind(pageUrl, alt);
@@ -122,12 +172,26 @@ const startOnboarding = async (req, res) => {
             const pageCount = new Map();
             function score(c) {
                 let s = 0;
+                const u = c.url.toLowerCase();
+                
                 if (c.kind === "logo") s += 100;
+                if (c.priority) s += 50;
+                if (u.includes("logo")) s += 50;
+                if (u.includes("brand")) s += 20;
+                if (u.endsWith(".png")) s += 30;
+                if (u.endsWith(".jpg") || u.endsWith(".jpeg")) s += 15;
+                if (u.includes("apple-touch-icon")) s -= 10;
+                if (u.includes("favicon") || u.endsWith(".ico")) s -= 50;
+                
                 if (c.kind === "product") s += 80;
                 if (c.kind === "home") s += 60;
+                
                 const key = c.source_page || "unknown";
                 s -= (pageCount.get(key) || 0) * 15;
-                if (c.url.toLowerCase().endsWith(".svg") && c.kind !== "logo") s -= 70; // Penaliza SVG a menos que sea logo
+                
+                // Penaliza SVG a menos que sea explícitamente logo o tenga "logo" en la URL
+                if (u.endsWith(".svg") && c.kind !== "logo" && !u.includes("logo")) s -= 70;
+                
                 return s;
             }
 
@@ -145,18 +209,15 @@ const startOnboarding = async (req, res) => {
                 pageCount.set(key, (pageCount.get(key) || 0) + 1);
             }
 
-            // 3. Extracción del Logo (Nodo EXTRACT_LOGO_URL)
-            const bestLogo = selectedImages.find(img => img.kind === 'logo' || img.url.toLowerCase().includes('logo'));
-            if (bestLogo) {
-                console.log(`[Job ID: ${jobId}] 🎯 Logo oficial detectado: ${bestLogo.url}`);
-                await saveMemoryResource(
-                    userId, 
-                    projectId, 
-                    'logo', 
-                    'Logo Oficial', 
-                    bestLogo.url,
-                    'image'
-                );
+            // 3. Extracción del Logo
+            const logoCandidate = selectedImages.sort((a,b) => score(b) - score(a))[0];
+            if (logoCandidate) {
+                console.log(`[Job ID: ${jobId}] 🎯 Logo oficial detectado: ${logoCandidate.url}`);
+                await saveMemoryResource(userId, projectId, 'logo', 'Logo Oficial', logoCandidate.url, 'image');
+                
+                // ACTUALIZAR TABLA PROJECTS PARA QUE SE VEA EN LA PLATAFORMA
+                console.log(`[Job ID: ${jobId}] 💾 Actualizando logo en tabla projects...`);
+                await updateProjectLogo(projectId, logoCandidate.url);
             }
 
             // 4. Análisis de Imágenes
